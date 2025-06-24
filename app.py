@@ -5,7 +5,7 @@ from oauth2client.service_account import ServiceAccountCredentials
 
 # Google Sheets setup
 scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-credentials = ServiceAccountCredentials.from_json_keyfile_name("alc-dictionary-6d2b3856648e.json", scope)
+credentials = ServiceAccountCredentials.from_json_keyfile_name('alc-dictionary-credentials.json', scopes=scope)
 client = gspread.authorize(credentials)
 
 # Open the main sheet (definitions) and the submissions sheet
