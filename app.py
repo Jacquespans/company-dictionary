@@ -3,40 +3,45 @@ import pandas as pd
 import gspread
 from oauth2client.service_account import ServiceAccountCredentials
 
-# === Setup ===
-SHEET_ID = "1B_09WvM16z_jJ8HAZxu-v09AZCm5-5gmVmBjX4qznK8"
-CSV_URL = f"https://docs.google.com/spreadsheets/d/{SHEET_ID}/export?format=csv"
+# Google Sheets setup
+scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
+credentials = ServiceAccountCredentials.from_json_keyfile_name("alc-dictionary-6d2b3856648e.json", scope)
+client = gspread.authorize(credentials)
 
-# === Load dictionary ===
-dict_df = pd.read_csv(CSV_URL)
+# Open the main sheet (definitions) and the submissions sheet
+spreadsheet = client.open_by_url("https://docs.google.com/spreadsheets/d/1B_09WvM16z_jJ8HAZxu-v09AZCm5-5gmVmBjX4qznK8/edit?usp=sharing")
+definitions_sheet = spreadsheet.sheet1
+submissions_sheet = spreadsheet.worksheet("Submissions")
 
-# === Streamlit UI ===
+# Load data into a DataFrame
+data = pd.DataFrame(definitions_sheet.get_all_records())
+
+# Streamlit app
+st.set_page_config(page_title="ALC Dictionary", layout="centered")
 st.title("📘 ALC Dictionary")
+
+# Search bar
 query = st.text_input("Search for a term:")
 if query:
-    results = dict_df[dict_df['Term'].str.lower().str.contains(query.lower())]
+    results = data[data['Term'].str.contains(query, case=False, na=False)]
     if not results.empty:
-        for _, row in results.iterrows():
-            st.write(f"**{row['Term']}**")
-            st.write(f"{row['Definition']}")
+        for i, row in results.iterrows():
+            st.markdown(f"**{row['Term']}**: {row['Definition']}")
     else:
         st.info("No matching term found.")
 
-# === Submission form ===
 st.markdown("---")
-st.header("➕ Submit a New Term")
+st.header("📬 Submit a New Term")
 
 with st.form("submission_form"):
     name = st.text_input("Your Name")
-    new_term = st.text_input("New Term")
-    new_def = st.text_area("Definition")
+    new_term = st.text_input("Term")
+    new_definition = st.text_area("Definition")
     submitted = st.form_submit_button("Submit")
-    if submitted and name and new_term and new_def:
-        # Connect to Google Sheet
-        scope = ["https://spreadsheets.google.com/feeds", "https://www.googleapis.com/auth/drive"]
-        creds = ServiceAccountCredentials.from_json_keyfile_name("alc-dictionary-6d2b3856648e.json", scope)
-        client = gspread.authorize(creds)
-        sheet = client.open_by_key(SHEET_ID)
-        ws = sheet.worksheet("Submissions")
-        ws.append_row([name, new_term, new_def])
-        st.success("✅ Submission received!")
+
+    if submitted:
+        if name and new_term and new_definition:
+            submissions_sheet.append_row([name, new_term, new_definition])
+            st.success("Your term has been submitted!")
+        else:
+            st.error("Please fill in all fields.")
